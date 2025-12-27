@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+// single line comment
+// another single line comment
+
+/* multi
+   line
+   comment */
+
+message Message {
+  // in message
+  bool var = 1; // right after entry
+  // at the bottom
+};
+
+enum Enum {
+  // in enum
+  DEFAULT = 0;
+}
+
+extend google.protobuf.FieldOptions {
+  // in extend
+  optional bool var = 1;
+}
+
+// at the bottom of the file

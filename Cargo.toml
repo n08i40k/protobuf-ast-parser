@@ -1,0 +1,12 @@
+[package]
+name = "parser"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lalrpop-util = { version = "*", features = ["lexer"] }
+logos = { version = "*", features = ["logos-derive"] }
+ownable = "1.0.0"
+
+[build-dependencies]
+lalrpop = "*"

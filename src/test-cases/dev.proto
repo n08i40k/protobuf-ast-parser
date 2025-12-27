@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package xxx;
+
+service Service {
+  option uninterpreted_option = {string_value: ""};
+
+  rpc RPC1 (xxx.Request) returns (xxx.Reply);
+  rpc RPC2 (.xxx.Request) returns (xxx.Reply) {}
+  rpc RPC3 (.xxx.Request) returns (xxx.Reply) {};
+}
+
+message Request {}
+message Reply {}

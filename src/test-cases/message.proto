@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+message Message {
+  reserved 2, 6 to max;
+  reserved "sample";
+
+  bool first = 1;
+  optional string third = 3;
+  repeated uint64 fourth = 4;
+  map<string, string> fifth = 5;
+};

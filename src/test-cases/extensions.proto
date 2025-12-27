@@ -1,0 +1,5 @@
+syntax = "proto2";
+
+message Message {
+  extensions 1, 2 to 5, 6 to max;
+};

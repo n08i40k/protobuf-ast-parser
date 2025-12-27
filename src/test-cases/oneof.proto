@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+message Message {
+  oneof OneOf {
+    option uninterpreted_option = { string_value: "" };
+
+    bool oneof_var = 1;
+  }
+
+  bool message_var = 2;
+}

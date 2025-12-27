@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+message Parent {
+  message Child {
+    bool var = 1;
+  }
+
+  Child child = 1;
+};

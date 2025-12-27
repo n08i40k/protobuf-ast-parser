@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+option java_multiple_files = true;
+option java_package = "xd.xd";
+
+extend google.protobuf.EnumValueOptions {
+  optional bool own_enum_value = 2000;
+}
+
+extend google.protobuf.FieldOptions {
+  optional bool own_field_value = 2000 [deprecated = true];
+}
+
+enum Enum {
+  option allow_alias = true;
+  FIRST = 0 [deprecated = true];
+  SECOND = 0 [(own_enum_value) = true];
+}
+
+message Message {
+  option deprecated = true;
+
+  optional bool var = 1 [
+    deprecated = true,
+    (own_field_value) = false,
+    edition_defaults = { edition: EDITION_PROTO2, value: "true" },
+    edition_defaults = { edition: EDITION_PROTO3, value: "false" }
+  ];
+}

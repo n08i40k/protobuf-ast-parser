@@ -1,0 +1,358 @@
+use crate::{ast, lexer, ast::JSONLikeMapTrait};
+
+grammar<'input>(input: &'input str);
+
+extern {
+    type Location = usize;
+    type Error = lexer::LexicalError<'input>;
+
+    enum lexer::Token<'input> {
+        SingleLineComment => lexer::Token::SingleLineComment(<&'input str>),
+        MultiLineComment => lexer::Token::MultiLineComment(<&'input str>),
+
+        Eq => lexer::Token::Eq,
+        Colon => lexer::Token::Colon,
+        Semicolon => lexer::Token::Semicolon,
+        Comma => lexer::Token::Comma,
+        Period => lexer::Token::Period,
+
+        OpenPth => lexer::Token::OpenPth,
+        ClosePth => lexer::Token::ClosePth,
+        OpenBracket => lexer::Token::OpenBracket,
+        CloseBracket => lexer::Token::CloseBracket,
+        OpenBrace => lexer::Token::OpenBrace,
+        CloseBrace => lexer::Token::CloseBrace,
+        OpenAngle => lexer::Token::OpenAngle,
+        CloseAngle => lexer::Token::CloseAngle,
+
+        Boolean => lexer::Token::Boolean(<bool>),
+        Integer => lexer::Token::Integer(<i64>),
+        String => lexer::Token::String(<&'input str>),
+
+        Ident => lexer::Token::Ident(<&'input str>),
+
+        "to" => lexer::Token::To,
+        "max" => lexer::Token::Max,
+        "syntax" => lexer::Token::Syntax,
+        "option" => lexer::Token::Option,
+        "package" => lexer::Token::Package,
+        "import" => lexer::Token::Import,
+        "service" => lexer::Token::Service,
+        "rpc" => lexer::Token::Rpc,
+        "stream" => lexer::Token::Stream,
+        "returns" => lexer::Token::Returns,
+        "message" => lexer::Token::Message,
+        "oneof" => lexer::Token::OneOf,
+        "extend" => lexer::Token::Extend,
+        "enum" => lexer::Token::Enum,
+        "reserved" => lexer::Token::Reserved,
+        "extensions" => lexer::Token::Extensions,
+        "optional" => lexer::Token::Optional,
+        "required" => lexer::Token::Required,
+        "repeated" => lexer::Token::Repeated,
+        "map" => lexer::Token::Map,
+    }
+}
+
+
+// Protocol Buffers 2 and 3 keywords.
+
+Keyword: &'input str = {
+    "to"         => "to",
+    "max"        => "max",
+    "syntax"     => "syntax",
+    "package"    => "package",
+    "import"     => "import",
+    "service"    => "service",
+    "rpc"        => "rpc",
+    "stream"     => "stream",
+    "returns"    => "returns",
+    "option"     => "option",
+    "message"    => "message",
+    "oneof"      => "oneof",
+    "extend"     => "extend",
+    "enum"       => "enum",
+    "reserved"   => "reserved",
+    "extensions" => "extensions",
+    "optional"   => "optional",
+    "required"   => "required",
+    "repeated"   => "repeated",
+    "map"        => "map",
+};
+
+#[inline]
+KeywordAsFieldType: &'input str = {
+    "to"      => "to",
+    "max"     => "max",
+    "syntax"  => "syntax",
+    "package" => "package",
+    "import"  => "import",
+    "service" => "service",
+    "rpc"     => "rpc",
+    "stream"  => "stream",
+    "returns" => "returns",
+};
+
+#[inline]
+KeywordAsRpcMessageType: &'input str = {
+    "to"         => "to",
+    "max"        => "max",
+    "syntax"     => "syntax",
+    "package"    => "package",
+    "import"     => "import",
+    "service"    => "service",
+    "rpc"        => "rpc",
+    "returns"    => "returns",
+    "option"     => "option",
+    "message"    => "message",
+    "oneof"      => "oneof",
+    "extend"     => "extend",
+    "enum"       => "enum",
+    "reserved"   => "reserved",
+    "extensions" => "extensions",
+    "optional" => "optional",
+    "required" => "required",
+    "repeated" => "repeated",
+    "map" => "map",
+};
+
+#[inline]
+IdentLike = { Keyword, Ident };
+
+
+// [.]optional.package
+
+#[inline]
+Path = { SafePath, UnsafePath }
+
+#[inline]
+LPath = { SafeLPath, UnsafePath };
+
+// Use-case         Unsafe  Safe
+// ident.ident               ++
+// keyword.ident      ++
+UnsafePath: &'input str = <l:@L> Keyword  (Period IdentLike)* <r:@R> => &input[l..r];
+  SafePath: &'input str = <l:@L> Ident    (Period IdentLike)* <r:@R> => &input[l..r];
+
+#[inline]
+ExactPath<E>: &'input str = <l:@L> E (Period IdentLike)* <r:@R> => &input[l..r];
+
+//                  Unsafe  Safe
+//    ident.ident            ++
+// .  ident.ident            ++
+//   keyword.ident    ++
+// . keyword.ident           ++
+#[inline] UnsafeLPath : &'input str = UnsafePath;
+            SafeLPath : &'input str = {
+    <l:@L> Period   UnsafePath  <r:@R> => &input[l..r],
+    <l:@L> Period?  SafePath    <r:@R> => &input[l..r],
+};
+
+Range: ast::Range = {
+    Integer                             => ast::Range::from(<>),
+    <start:Integer> "to" <end:Integer>  => ast::Range::from(start..end),
+    <start:Integer> "to" <end:"max">    => ast::Range::from((start, ())),
+};
+
+
+// Lists
+
+// value, value, value
+CommaList<T>: Vec<T> = <first:T> <mut rest:(Comma <T>)*> => { rest.insert(0, first); rest };
+
+// value, value, value[,]
+TrailingCommaList<T>: Vec<T> = <first:T> <mut rest:(Comma <T>)*> Comma? => { rest.insert(0, first); rest };
+
+// stmt[;] stmt[;] stmt[;]
+StmtList<T>: Vec<T> = <v:(<T> Semicolon*)*> => <>;
+
+// <keyword:K> <ident-type:I> {
+//     <stmt:E>[;]
+//     <stmt:E>[;]
+//     <stmt:E>[;]
+// }
+Block<K, I, E> = K <I> OpenBrace <StmtList<E>> CloseBrace;
+
+
+// Protocol Buffers file AST
+
+pub File: ast::File<'input> = StmtList<FileEntryStmt>;
+
+FileEntryStmt: ast::FileEntry<'input> = {
+    CommentStmt                         => ast::FileEntry::r#comment(<>),
+       "syntax" Eq   <String> Semicolon => ast::FileEntry::r#syntax(<>),
+      "package"        <Path> Semicolon => ast::FileEntry::r#package(<>),
+       "import"      <String> Semicolon => ast::FileEntry::r#import(<>),
+     OptionStmt                         => ast::FileEntry::r#option(<>),
+    ServiceStmt                         => ast::FileEntry::r#service(<>),
+    MessageStmt                         => ast::FileEntry::r#message(<>),
+     ExtendStmt                         => ast::FileEntry::r#extend(<>),
+       EnumStmt                         => ast::FileEntry::r#enum(<>),
+};
+
+
+// comment
+
+CommentStmt: ast::Comment<'input> = {
+    SingleLineComment => ast::Comment::single_line(<>),
+     MultiLineComment => ast::Comment::multi_line(<>),
+};
+
+
+// option
+
+OptionStmt = "option" <Option> Semicolon;
+OptionListStmt: Vec<ast::Option<'input>> = <(OpenBracket <CommaList<Option>> CloseBracket)?> => <>.unwrap_or(vec![]);
+
+Option: ast::Option<'input> = <key:OptionKey> Eq <value:MapValue> => ast::Option::new(key, value);
+
+OptionKey: &'input str = {
+    <l:@L> OpenPth LPath ClosePth <r:@R> => &input[l..r],
+    Path,
+}
+
+MapValue: ast::MapValue<'input> = {
+    Boolean     => ast::MapValue::boolean(<>),
+    Integer     => ast::MapValue::integer(<>),
+    Ident       => ast::MapValue::ident(<>),
+    String      => ast::MapValue::string(<>),
+    JSONLikeMap => ast::MapValue::map(<>),
+};
+
+JSONLikeMap: ast::JSONLikeMap<'input>
+    = OpenBrace <TrailingCommaList<(<Ident> Colon <MapValue>)>> CloseBrace
+    => ast::JSONLikeMap::<'input>::from_borrowed_iter(<>);
+
+
+// service [ident] { ... }
+
+ServiceStmt: ast::Service<'input> = Block<"service", IdentLike, ServiceEntry> => ast::Service::new(<>.0, <>.1);
+
+ServiceEntry: ast::ServiceEntry<'input> = {
+            CommentStmt => ast::ServiceEntry::comment(<>),
+             OptionStmt => ast::ServiceEntry::option(<>),
+                RpcStmt => ast::ServiceEntry::rpc(<>),
+};
+
+
+// rpc [ident] ([stream]? [request]) returns ([stream]? [reply])[{} | ; | {};]
+
+RpcStmt: ast::Rpc<'input> = {
+    "rpc" <ident:IdentLike>
+        OpenPth <request:StreamIdentLike> ClosePth
+        "returns"
+        OpenPth <reply:StreamIdentLike> ClosePth
+        RpcClose
+        => ast::Rpc::new(ident, request.1, reply.1, ast::RpcStream::new(request.0, reply.0))
+};
+
+StreamIdentLike: (bool, &'input str) = {
+    "stream" <LPath>                    => (true, <>),
+    SafeLPath                           => (false, <>),
+    ExactPath<KeywordAsRpcMessageType>  => (false, <>),
+};
+
+RpcClose: () = { Semicolon => (), OpenBrace CloseBrace => () };
+
+
+// message [ident] { ... }
+
+MessageStmt: ast::Message<'input> = Block<"message", IdentLike, MessageEntry> => ast::Message::new(<>.0, <>.1);
+
+MessageEntry: ast::MessageEntry<'input> = {
+            CommentStmt => ast::MessageEntry::r#comment(<>),
+             OptionStmt => ast::MessageEntry::r#option(<>),
+            MessageStmt => ast::MessageEntry::r#message(<>),
+               EnumStmt => ast::MessageEntry::r#enum(<>),
+             ExtendStmt => ast::MessageEntry::r#extend(<>),
+              FieldStmt => ast::MessageEntry::r#field(<>),
+              OneOfStmt => ast::MessageEntry::r#one_of(<>),
+    ReservedIndicesStmt => ast::MessageEntry::r#reserved_indices(<>),
+     ReservedIdentsStmt => ast::MessageEntry::r#reserved_idents(<>),
+         ExtensionsStmt => ast::MessageEntry::r#extensions(<>),
+};
+
+// [mod] [type] [ident] = [index];
+FieldStmt: ast::Field<'input> = {
+    <mt:ModFieldType> <ident:IdentLike> Eq <index:Integer> <options:OptionListStmt> Semicolon
+        => ast::Field::new(mt.0, mt.1, ident, index, options),
+};
+
+ModFieldType: (ast::FieldModifier, &'input str) = {
+    // [modifier]? map<k, v>
+    <modifier:FieldModifier?> <r#type:MapFieldType> => (modifier.unwrap_or(ast::FieldModifier::None), r#type),
+
+    // [modifier]  ident[.any]?
+    // [modifier] .ident[.any]?
+    // [modifier]  kw[.any]?
+    // [modifier] .kw[.any]?
+    <modifier:FieldModifier> <r#type:LPath>         => (modifier, r#type),
+
+    //  ident[.any]?
+    // .ident[.any]?
+    // .kw[.any]?
+    SafeLPath                                       => (ast::FieldModifier::None, <>),
+
+    // kw*[.any]?
+    // * - only "allowed" keywords (not used as message entry first keyword. message, enum, option, etc.)
+    ExactPath<KeywordAsFieldType>                   => (ast::FieldModifier::None, <>),
+};
+
+FieldModifier: ast::FieldModifier = {
+    "optional" => ast::FieldModifier::Optional,
+    "required" => ast::FieldModifier::Required,
+    "repeated" => ast::FieldModifier::Repeated,
+};
+
+MapFieldType: &'input str = <l:@L> "map" OpenAngle Ident Comma IdentLike CloseAngle <r:@R> => &input[l..r];
+
+
+// reserved 2, 3, 4 to 6;
+
+ReservedIndicesStmt: Vec<ast::Range> = "reserved" <CommaList<Range>> Semicolon;
+
+
+// reserved "xd", "xdd";
+
+ReservedIdentsStmt: Vec<&'input str> = "reserved" <CommaList<String>> Semicolon;
+
+
+// extensions 1000 to max;
+
+ExtensionsStmt: Vec<ast::Range> = "extensions" <CommaList<Range>> Semicolon;
+
+
+// oneof [ident] { ... }
+
+OneOfStmt: ast::OneOf<'input> = Block<"oneof", IdentLike, OneOfEntry> => ast::OneOf::new(<>.0, <>.1);
+
+OneOfEntry: ast::OneOfEntry<'input> = {
+    CommentStmt => ast::OneOfEntry::comment(<>),
+     OptionStmt => ast::OneOfEntry::option(<>),
+      FieldStmt => ast::OneOfEntry::field(<>),
+};
+
+
+// extend [ident] { ... }
+
+ExtendStmt: ast::Extend<'input> = Block<"extend", LPath, ExtendEntry> => ast::Extend::new(<>.0, <>.1);
+
+ExtendEntry: ast::ExtendEntry<'input> = {
+    CommentStmt => ast::ExtendEntry::comment(<>),
+      FieldStmt => ast::ExtendEntry::field(<>),
+};
+
+
+// enum [ident] { ... }
+
+EnumStmt: ast::Enum<'input> = Block<"enum", IdentLike, EnumEntry> => ast::Enum::new(<>.0, <>.1);
+
+EnumEntry: ast::EnumEntry<'input> = {
+     CommentStmt => ast::EnumEntry::comment(<>),
+      OptionStmt => ast::EnumEntry::option(<>),
+    EnumPairStmt,
+};
+
+EnumPairStmt: ast::EnumEntry<'input>
+    = <ident:IdentLike> Eq <value:Integer> <options:OptionListStmt> Semicolon
+    => ast::EnumEntry::pair(ident, value, options);

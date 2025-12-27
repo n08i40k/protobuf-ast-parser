@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+enum Enum {
+  ZERO = 0;
+  POSITIVE = 1;
+  NEGATIVE = -1;
+}

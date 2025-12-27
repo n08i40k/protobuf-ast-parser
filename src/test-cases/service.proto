@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+service Service {
+  option uninterpreted_option = {string_value: ""};
+  
+  rpc RPC1 (Request)        returns (Reply);
+  rpc RPC2 (stream Request) returns (Reply) {}
+  rpc RPC3 (Request)        returns (stream Reply) {};
+  rpc RPC4 (stream Request) returns (stream Reply) {};;
+}
+
+message Request {}
+message Reply {}

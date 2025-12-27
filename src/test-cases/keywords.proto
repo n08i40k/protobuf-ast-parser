@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+message Ident {}
+
+message to {message inner{}}
+message max {}
+message syntax {}
+message option {}
+message package {}
+message import {}
+message message {}
+message oneof {}
+message extend {}
+message enum {}
+message reserved {}
+message extensions {}
+message optional {}
+message required {}
+message repeated {}
+message map {}
+
+
+message Message {
+  bool      var1 = 1;
+  Ident     var2 = 2;
+  to        var3 = 3;
+  to.inner  var4 = 4;
+  max       var5 = 5;
+  syntax    var6 = 6;
+  package   var7 = 7;
+  import    var8 = 8;
+};
