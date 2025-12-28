@@ -1,4 +1,5 @@
 use crate::{ast, lexer, ast::FromBorrowedIter};
+use std::borrow::Cow;
 
 grammar<'input>(input: &'input str);
 
@@ -149,9 +150,9 @@ ExactPath<E>: &'input str = <l:@L> E (Period IdentLike)* <r:@R> => &input[l..r];
 };
 
 Range: ast::Range = {
-    Integer                             => ast::Range::from(<>..(<> + 1)),
-    <start:Integer> "to" <end:Integer>  => ast::Range::from(start..end),
-    <start:Integer> "to" <end:"max">    => ast::Range::from(start..),
+    Integer                             => (<>..(<> + 1)).into(),
+    <start:Integer> "to" <end:Integer>  => (start..end).into(),
+    <start:Integer> "to" <end:"max">    => (start..).into(),
 };
 
 
@@ -179,15 +180,15 @@ Block<K, I, E> = K <I> OpenBrace <StmtList<E>> CloseBrace;
 pub Root: Vec<ast::RootEntry<'input>> = StmtList<RootEntryStmt>;
 
 RootEntryStmt: ast::RootEntry<'input> = {
-    CommentStmt                         => ast::RootEntry::r#comment(<>),
-       "syntax" Eq   <String> Semicolon => ast::RootEntry::r#syntax(<>),
-      "package"        <Path> Semicolon => ast::RootEntry::r#package(<>),
-       "import"      <String> Semicolon => ast::RootEntry::r#import(<>),
-     OptionStmt                         => ast::RootEntry::r#option(<>),
-    ServiceStmt                         => ast::RootEntry::r#service(<>),
-    MessageStmt                         => ast::RootEntry::r#message(<>),
-     ExtendStmt                         => ast::RootEntry::r#extend(<>),
-       EnumStmt                         => ast::RootEntry::r#enum(<>),
+    CommentStmt                         => <>.into(),
+       "syntax" Eq   <String> Semicolon => ast::RootEntry::Syntax(Cow::from(<>)),
+      "package"        <Path> Semicolon => ast::RootEntry::Package(Cow::from(<>)),
+       "import"      <String> Semicolon => ast::RootEntry::Import(Cow::from(<>)),
+     OptionStmt                         => <>.into(),
+    ServiceStmt                         => <>.into(),
+    MessageStmt                         => <>.into(),
+     ExtendStmt                         => <>.into(),
+       EnumStmt                         => <>.into(),
 };
 
 
@@ -212,11 +213,11 @@ OptionKey: &'input str = {
 }
 
 MapValue: ast::MapValue<'input> = {
-    Boolean     => ast::MapValue::boolean(<>),
-    Integer     => ast::MapValue::integer(<>),
-    Ident       => ast::MapValue::ident(<>),
-    String      => ast::MapValue::string(<>),
-    Map => ast::MapValue::map(<>),
+    Boolean     => <>.into(),
+    Integer     => <>.into(),
+    Ident       => ast::MapValue::Ident(Cow::from(<>)),
+    String      => ast::MapValue::String(Cow::from(<>)),
+    Map         => <>.into(),
 };
 
 Map: ast::Map<'input>
@@ -229,9 +230,9 @@ Map: ast::Map<'input>
 ServiceStmt: ast::Service<'input> = Block<"service", IdentLike, ServiceEntry> => ast::Service::new(<>.0, <>.1);
 
 ServiceEntry: ast::ServiceEntry<'input> = {
-            CommentStmt => ast::ServiceEntry::comment(<>),
-             OptionStmt => ast::ServiceEntry::option(<>),
-                RpcStmt => ast::ServiceEntry::rpc(<>),
+            CommentStmt => <>.into(),
+             OptionStmt => <>.into(),
+                RpcStmt => <>.into(),
 };
 
 
@@ -260,16 +261,16 @@ RpcClose: () = { Semicolon => (), OpenBrace CloseBrace => () };
 MessageStmt: ast::Message<'input> = Block<"message", IdentLike, MessageEntry> => ast::Message::new(<>.0, <>.1);
 
 MessageEntry: ast::MessageEntry<'input> = {
-            CommentStmt => ast::MessageEntry::r#comment(<>),
-             OptionStmt => ast::MessageEntry::r#option(<>),
-            MessageStmt => ast::MessageEntry::r#message(<>),
-               EnumStmt => ast::MessageEntry::r#enum(<>),
-             ExtendStmt => ast::MessageEntry::r#extend(<>),
-              FieldStmt => ast::MessageEntry::r#field(<>),
-              OneOfStmt => ast::MessageEntry::r#one_of(<>),
-    ReservedIndicesStmt => ast::MessageEntry::r#reserved_indices(<>),
-     ReservedIdentsStmt => ast::MessageEntry::r#reserved_idents(<>),
-         ExtensionsStmt => ast::MessageEntry::r#extensions(<>),
+            CommentStmt => <>.into(),
+             OptionStmt => <>.into(),
+            MessageStmt => <>.into(),
+               EnumStmt => <>.into(),
+             ExtendStmt => <>.into(),
+              FieldStmt => <>.into(),
+              OneOfStmt => <>.into(),
+    ReservedIndicesStmt => <>.into(),
+     ReservedIdentsStmt => <>.into(),
+         ExtensionsStmt => <>.into(),
 };
 
 // [mod] [type] [ident] = [index];
@@ -309,17 +310,17 @@ MapFieldType: &'input str = <l:@L> "map" OpenAngle Ident Comma IdentLike CloseAn
 
 // reserved 2, 3, 4 to 6;
 
-ReservedIndicesStmt: Vec<ast::Range> = "reserved" <CommaList<Range>> Semicolon;
+ReservedIndicesStmt: ast::ReservedIndices = "reserved" <CommaList<Range>> Semicolon => <>.into();
 
 
 // reserved "xd", "xdd";
 
-ReservedIdentsStmt: Vec<&'input str> = "reserved" <CommaList<String>> Semicolon;
+ReservedIdentsStmt: ast::ReservedIdents<'input> = "reserved" <CommaList<String>> Semicolon => <>.into();
 
 
 // extensions 1000 to max;
 
-ExtensionsStmt: Vec<ast::Range> = "extensions" <CommaList<Range>> Semicolon;
+ExtensionsStmt: ast::Extensions = "extensions" <CommaList<Range>> Semicolon => <>.into();
 
 
 // oneof [ident] { ... }
@@ -327,9 +328,9 @@ ExtensionsStmt: Vec<ast::Range> = "extensions" <CommaList<Range>> Semicolon;
 OneOfStmt: ast::OneOf<'input> = Block<"oneof", IdentLike, OneOfEntry> => ast::OneOf::new(<>.0, <>.1);
 
 OneOfEntry: ast::OneOfEntry<'input> = {
-    CommentStmt => ast::OneOfEntry::comment(<>),
-     OptionStmt => ast::OneOfEntry::option(<>),
-      FieldStmt => ast::OneOfEntry::field(<>),
+    CommentStmt => <>.into(),
+     OptionStmt => <>.into(),
+      FieldStmt => <>.into(),
 };
 
 
@@ -338,8 +339,8 @@ OneOfEntry: ast::OneOfEntry<'input> = {
 ExtendStmt: ast::Extend<'input> = Block<"extend", LPath, ExtendEntry> => ast::Extend::new(<>.0, <>.1);
 
 ExtendEntry: ast::ExtendEntry<'input> = {
-    CommentStmt => ast::ExtendEntry::comment(<>),
-      FieldStmt => ast::ExtendEntry::field(<>),
+    CommentStmt => <>.into(),
+      FieldStmt => <>.into(),
 };
 
 
@@ -348,11 +349,11 @@ ExtendEntry: ast::ExtendEntry<'input> = {
 EnumStmt: ast::Enum<'input> = Block<"enum", IdentLike, EnumEntry> => ast::Enum::new(<>.0, <>.1);
 
 EnumEntry: ast::EnumEntry<'input> = {
-     CommentStmt => ast::EnumEntry::comment(<>),
-      OptionStmt => ast::EnumEntry::option(<>),
- EnumVariantStmt,
+     CommentStmt => <>.into(),
+      OptionStmt => <>.into(),
+ EnumVariantStmt => <>.into(),
 };
 
-EnumVariantStmt: ast::EnumEntry<'input>
+EnumVariantStmt: ast::EnumVariant<'input>
     = <ident:IdentLike> Eq <value:Integer> <options:OptionListStmt> Semicolon
-    => ast::EnumEntry::variant(ident, value, options);
+    => ast::EnumVariant::new(ident, value, options);

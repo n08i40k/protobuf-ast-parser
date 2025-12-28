@@ -6,7 +6,7 @@
 //!
 //! let field = Field::new(Some(FieldModifier::Optional), "string", "name", 1, vec![]);
 //! let message = Message::new("User", vec![MessageEntry::Field(field)]);
-//! let file = vec![RootEntry::message(message)];
+//! let file = vec![RootEntry::from(message)];
 //! assert_eq!(file.len(), 1);
 //! ```
 
@@ -14,6 +14,7 @@ use ownable::traits::IntoOwned;
 use ownable::IntoOwned;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 
 /// Represents a reserved or extensions range in `.proto` syntax.
 ///
@@ -57,8 +58,8 @@ impl From<std::ops::RangeFrom<i64>> for Range {
 /// use protobuf_ast_parser::ast::{Map, MapValue};
 /// use std::borrow::Cow;
 ///
-/// let map: Map = [(Cow::from("enabled"), MapValue::boolean(true))].into();
-/// let value = MapValue::map(map);
+/// let map: Map = [(Cow::from("enabled"), MapValue::from(true))].into();
+/// let value = MapValue::from(map);
 /// ```
 #[derive(Debug, Clone, PartialEq, IntoOwned)]
 pub enum MapValue<'a> {
@@ -69,25 +70,21 @@ pub enum MapValue<'a> {
     Map(Map<'a>),
 }
 
-impl<'a> MapValue<'a> {
-    pub fn boolean(boolean: bool) -> Self {
-        Self::Boolean(boolean)
+impl<'a> From<bool> for MapValue<'a> {
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
     }
+}
 
-    pub fn integer(integer: i64) -> Self {
-        Self::Integer(integer)
+impl<'a> From<i64> for MapValue<'a> {
+    fn from(value: i64) -> Self {
+        Self::Integer(value)
     }
+}
 
-    pub fn ident(ident: &'a str) -> Self {
-        Self::Ident(Cow::from(ident))
-    }
-
-    pub fn string(string: &'a str) -> Self {
-        Self::String(Cow::from(string))
-    }
-
-    pub fn map(map: Map<'a>) -> Self {
-        Self::Map(map)
+impl<'a> From<Map<'a>> for MapValue<'a> {
+    fn from(value: Map<'a>) -> Self {
+        Self::Map(value)
     }
 }
 
@@ -116,7 +113,7 @@ impl<'a> FromBorrowedIter<'a> for Map<'a> {
 /// ```rust
 /// use protobuf_ast_parser::ast::{MapValue, Option};
 ///
-/// let option = Option::new("deprecated", MapValue::boolean(true));
+/// let option = Option::new("deprecated", MapValue::from(true));
 /// assert_eq!(option.key, "deprecated");
 /// ```
 #[derive(Debug, Clone, PartialEq, IntoOwned)]
@@ -181,7 +178,7 @@ pub enum CommentType {
 /// ```rust
 /// use protobuf_ast_parser::ast::{RootEntry, Comment};
 ///
-/// let entry = RootEntry::comment(Comment::single_line("// hi"));
+/// let entry = RootEntry::from(Comment::single_line("// hi"));
 /// ```
 #[derive(Debug, Clone, PartialEq, IntoOwned)]
 pub enum RootEntry<'a> {
@@ -196,40 +193,38 @@ pub enum RootEntry<'a> {
     Enum(Enum<'a>),
 }
 
-impl<'a> RootEntry<'a> {
-    pub fn syntax(value: &'a str) -> Self {
-        Self::Syntax(Cow::from(value))
-    }
-
-    pub fn comment(comment: Comment<'a>) -> Self {
+impl<'a> From<Comment<'a>> for RootEntry<'a> {
+    fn from(comment: Comment<'a>) -> Self {
         Self::Comment(comment)
     }
+}
 
-    pub fn package(value: &'a str) -> Self {
-        Self::Package(Cow::from(value))
-    }
-
-    pub fn import(value: &'a str) -> Self {
-        Self::Import(Cow::from(value))
-    }
-
-    pub fn option(option: Option<'a>) -> Self {
+impl<'a> From<Option<'a>> for RootEntry<'a> {
+    fn from(option: Option<'a>) -> Self {
         Self::Option(option)
     }
+}
 
-    pub fn service(service: Service<'a>) -> Self {
+impl<'a> From<Service<'a>> for RootEntry<'a> {
+    fn from(service: Service<'a>) -> Self {
         Self::Service(service)
     }
+}
 
-    pub fn message(message: Message<'a>) -> Self {
+impl<'a> From<Message<'a>> for RootEntry<'a> {
+    fn from(message: Message<'a>) -> Self {
         Self::Message(message)
     }
+}
 
-    pub fn extend(extend: Extend<'a>) -> Self {
+impl<'a> From<Extend<'a>> for RootEntry<'a> {
+    fn from(extend: Extend<'a>) -> Self {
         Self::Extend(extend)
     }
+}
 
-    pub fn r#enum(r#enum: Enum<'a>) -> Self {
+impl<'a> From<Enum<'a>> for RootEntry<'a> {
+    fn from(r#enum: Enum<'a>) -> Self {
         Self::Enum(r#enum)
     }
 }
@@ -262,17 +257,21 @@ pub enum ServiceEntry<'a> {
     Rpc(Rpc<'a>),
 }
 
-impl<'a> ServiceEntry<'a> {
-    pub fn comment(comment: Comment<'a>) -> Self {
-        Self::Comment(comment)
+impl<'a> From<Comment<'a>> for ServiceEntry<'a> {
+    fn from(comment: Comment<'a>) -> Self {
+        ServiceEntry::Comment(comment)
     }
+}
 
-    pub fn option(option: Option<'a>) -> Self {
-        Self::Option(option)
+impl<'a> From<Option<'a>> for ServiceEntry<'a> {
+    fn from(option: Option<'a>) -> Self {
+        ServiceEntry::Option(option)
     }
+}
 
-    pub fn rpc(rpc: Rpc<'a>) -> Self {
-        Self::Rpc(rpc)
+impl<'a> From<Rpc<'a>> for ServiceEntry<'a> {
+    fn from(rpc: Rpc<'a>) -> Self {
+        ServiceEntry::Rpc(rpc)
     }
 }
 
@@ -341,6 +340,99 @@ impl<'a> Message<'a> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, IntoOwned)]
+pub struct ReservedIndices(Vec<Range>);
+
+impl From<Vec<Range>> for ReservedIndices {
+    fn from(value: Vec<Range>) -> Self {
+        ReservedIndices(value)
+    }
+}
+
+impl Into<Vec<Range>> for ReservedIndices {
+    fn into(self) -> Vec<Range> {
+        self.0
+    }
+}
+
+impl Deref for ReservedIndices {
+    type Target = Vec<Range>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ReservedIndices {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, IntoOwned)]
+pub struct ReservedIdents<'a>(Vec<Cow<'a, str>>);
+
+impl<'a> From<Vec<&'a str>> for ReservedIdents<'a> {
+    fn from(value: Vec<&'a str>) -> Self {
+        ReservedIdents(value.iter().map(|s| Cow::from(*s)).collect())
+    }
+}
+
+impl<'a> From<Vec<Cow<'a, str>>> for ReservedIdents<'a> {
+    fn from(value: Vec<Cow<'a, str>>) -> Self {
+        ReservedIdents(value)
+    }
+}
+
+impl<'a> Into<Vec<Cow<'a, str>>> for ReservedIdents<'a> {
+    fn into(self) -> Vec<Cow<'a, str>> {
+        self.0
+    }
+}
+
+impl<'a> Deref for ReservedIdents<'a> {
+    type Target = Vec<Cow<'a, str>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for ReservedIdents<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, IntoOwned)]
+pub struct Extensions(Vec<Range>);
+
+impl From<Vec<Range>> for Extensions {
+    fn from(value: Vec<Range>) -> Self {
+        Extensions(value)
+    }
+}
+
+impl Into<Vec<Range>> for Extensions {
+    fn into(self) -> Vec<Range> {
+        self.0
+    }
+}
+
+impl Deref for Extensions {
+    type Target = Vec<Range>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Extensions {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// Entries that can appear inside a `message` block.
 #[derive(Debug, Clone, PartialEq, IntoOwned)]
 pub enum MessageEntry<'a> {
@@ -353,51 +445,69 @@ pub enum MessageEntry<'a> {
     Extend(Extend<'a>),
     Enum(Enum<'a>),
 
-    ReservedIndices(Vec<Range>),
-    ReservedIdents(Vec<Cow<'a, str>>),
+    ReservedIndices(ReservedIndices),
+    ReservedIdents(ReservedIdents<'a>),
 
-    Extensions(Vec<Range>),
+    Extensions(Extensions),
 }
 
-impl<'a> MessageEntry<'a> {
-    pub fn comment(comment: Comment<'a>) -> Self {
+impl<'a> From<Comment<'a>> for MessageEntry<'a> {
+    fn from(comment: Comment<'a>) -> Self {
         Self::Comment(comment)
     }
+}
 
-    pub fn option(option: Option<'a>) -> Self {
+impl<'a> From<Option<'a>> for MessageEntry<'a> {
+    fn from(option: Option<'a>) -> Self {
         Self::Option(option)
     }
+}
 
-    pub fn field(field: Field<'a>) -> Self {
+impl<'a> From<Field<'a>> for MessageEntry<'a> {
+    fn from(field: Field<'a>) -> Self {
         Self::Field(field)
     }
+}
 
-    pub fn one_of(one_of: OneOf<'a>) -> Self {
+impl<'a> From<OneOf<'a>> for MessageEntry<'a> {
+    fn from(one_of: OneOf<'a>) -> Self {
         Self::OneOf(one_of)
     }
+}
 
-    pub fn message(message: Message<'a>) -> Self {
+impl<'a> From<Message<'a>> for MessageEntry<'a> {
+    fn from(message: Message<'a>) -> Self {
         Self::Message(message)
     }
+}
 
-    pub fn extend(extend: Extend<'a>) -> Self {
+impl<'a> From<Extend<'a>> for MessageEntry<'a> {
+    fn from(extend: Extend<'a>) -> Self {
         Self::Extend(extend)
     }
+}
 
-    pub fn r#enum(r#enum: Enum<'a>) -> Self {
+impl<'a> From<Enum<'a>> for MessageEntry<'a> {
+    fn from(r#enum: Enum<'a>) -> Self {
         Self::Enum(r#enum)
     }
+}
 
-    pub fn reserved_indices(ranges: Vec<Range>) -> Self {
-        Self::ReservedIndices(ranges)
+impl<'a> From<ReservedIndices> for MessageEntry<'a> {
+    fn from(reserved_indices: ReservedIndices) -> Self {
+        Self::ReservedIndices(reserved_indices)
     }
+}
 
-    pub fn reserved_idents(idents: impl IntoIterator<Item = &'a str>) -> Self {
-        Self::ReservedIdents(idents.into_iter().map(Cow::from).collect())
+impl<'a> From<ReservedIdents<'a>> for MessageEntry<'a> {
+    fn from(reserved_idents: ReservedIdents<'a>) -> Self {
+        Self::ReservedIdents(reserved_idents)
     }
+}
 
-    pub fn extensions(ranges: Vec<Range>) -> Self {
-        Self::Extensions(ranges)
+impl<'a> From<Extensions> for MessageEntry<'a> {
+    fn from(extensions: Extensions) -> Self {
+        Self::Extensions(extensions)
     }
 }
 
@@ -435,16 +545,6 @@ impl<'a> Field<'a> {
             options,
         }
     }
-
-    pub fn basic(r#type: &'a str, ident: &'a str, index: i64) -> Self {
-        Self {
-            modifier: None,
-            r#type: Cow::from(r#type),
-            ident: Cow::from(ident),
-            index,
-            options: vec![],
-        }
-    }
 }
 
 /// `oneof` definition inside a message.
@@ -472,16 +572,20 @@ pub enum OneOfEntry<'a> {
     Field(Field<'a>),
 }
 
-impl<'a> OneOfEntry<'a> {
-    pub fn comment(comment: Comment<'a>) -> Self {
+impl<'a> From<Comment<'a>> for OneOfEntry<'a> {
+    fn from(comment: Comment<'a>) -> Self {
         Self::Comment(comment)
     }
+}
 
-    pub fn option(option: Option<'a>) -> Self {
+impl<'a> From<Option<'a>> for OneOfEntry<'a> {
+    fn from(option: Option<'a>) -> Self {
         Self::Option(option)
     }
+}
 
-    pub fn field(field: Field<'a>) -> Self {
+impl<'a> From<Field<'a>> for OneOfEntry<'a> {
+    fn from(field: Field<'a>) -> Self {
         Self::Field(field)
     }
 }
@@ -517,12 +621,14 @@ pub enum ExtendEntry<'a> {
     Field(Field<'a>),
 }
 
-impl<'a> ExtendEntry<'a> {
-    pub fn comment(comment: Comment<'a>) -> Self {
+impl<'a> From<Comment<'a>> for ExtendEntry<'a> {
+    fn from(comment: Comment<'a>) -> Self {
         Self::Comment(comment)
     }
+}
 
-    pub fn field(field: Field<'a>) -> Self {
+impl<'a> From<Field<'a>> for ExtendEntry<'a> {
+    fn from(field: Field<'a>) -> Self {
         Self::Field(field)
     }
 }
@@ -551,27 +657,46 @@ pub enum EnumEntry<'a> {
     Variant(EnumVariant<'a>),
 }
 
-impl<'a> EnumEntry<'a> {
-    pub fn comment(comment: Comment<'a>) -> Self {
+impl<'a> From<Comment<'a>> for EnumEntry<'a> {
+    fn from(comment: Comment<'a>) -> Self {
         Self::Comment(comment)
-    }
-
-    pub fn option(option: Option<'a>) -> Self {
-        Self::Option(option)
-    }
-
-    pub fn variant(ident: &'a str, value: i64, options: Vec<Option<'a>>) -> Self {
-        Self::Variant(EnumVariant {
-            ident: Cow::from(ident),
-            value,
-            options,
-        })
     }
 }
 
+impl<'a> From<Option<'a>> for EnumEntry<'a> {
+    fn from(option: Option<'a>) -> Self {
+        Self::Option(option)
+    }
+}
+
+impl<'a> From<EnumVariant<'a>> for EnumEntry<'a> {
+    fn from(value: EnumVariant<'a>) -> Self {
+        Self::Variant(value)
+    }
+}
+
+/// Enum variant definition inside an enum block.
+///
+/// # Examples
+/// ```rust
+/// use protobuf_ast_parser::ast::EnumVariant;
+///
+/// let variant = EnumVariant::new("FIRST", 1, vec![]);
+/// assert_eq!(variant.value, 1);
+/// ```
 #[derive(Debug, Clone, PartialEq, IntoOwned)]
 pub struct EnumVariant<'a> {
-    ident: Cow<'a, str>,
-    value: i64,
-    options: Vec<Option<'a>>,
+    pub ident: Cow<'a, str>,
+    pub value: i64,
+    pub options: Vec<Option<'a>>,
+}
+
+impl<'a> EnumVariant<'a> {
+    pub fn new(ident: &'a str, value: i64, options: Vec<Option<'a>>) -> Self {
+        Self {
+            ident: Cow::from(ident),
+            value,
+            options,
+        }
+    }
 }
