@@ -11,7 +11,7 @@ pub type ParseResult<'a> = Result<ast::Root<'a>, ParseError<'a>>;
 ///
 /// # Examples
 /// ```rust
-/// use protobuf_parser::parse;
+/// use protobuf_ast_parser::parse;
 ///
 /// let source = r#"syntax = "proto3"; message User { string name = 1; }"#;
 /// let ast = parse(source).expect("valid proto");

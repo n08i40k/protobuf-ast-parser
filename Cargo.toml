@@ -1,9 +1,9 @@
 [package]
-name = "protobuf-parser"
+name = "protobuf-ast-parser"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-keywords = ["protobuf", "parser"]
+keywords = ["protobuf", "ast", "parser"]
 categories = ["parser-implementations"]
 description = "A Protocol Buffers (proto2/proto3) parser that produces a typed AST with comments"
 repository = "https://github.com/n08i40k/protobuf-parser"

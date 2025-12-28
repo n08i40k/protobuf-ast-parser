@@ -32,7 +32,8 @@ fn parse_bench(c: &mut Criterion) {
     for (name, source) in cases {
         group.bench_with_input(BenchmarkId::new("proto", name), source, |b, data| {
             b.iter(|| {
-                let ast = protobuf_parser::parse(std::hint::black_box(data)).expect("valid proto");
+                let ast =
+                    protobuf_ast_parser::parse(std::hint::black_box(data)).expect("valid proto");
                 std::hint::black_box(ast);
             });
         });

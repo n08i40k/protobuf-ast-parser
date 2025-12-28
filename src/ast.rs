@@ -2,7 +2,7 @@
 //!
 //! # Examples
 //! ```rust
-//! use protobuf_parser::ast::{Field, FieldModifier, Message, MessageEntry, RootEntry};
+//! use protobuf_ast_parser::ast::{Field, FieldModifier, Message, MessageEntry, RootEntry};
 //!
 //! let field = Field::new(Some(FieldModifier::Optional), "string", "name", 1, vec![]);
 //! let message = Message::new("User", vec![MessageEntry::Field(field)]);
@@ -19,7 +19,7 @@ use std::collections::HashMap;
 ///
 /// # Examples
 /// ```rust
-/// use protobuf_parser::ast::Range;
+/// use protobuf_ast_parser::ast::Range;
 ///
 /// let finite = Range::from(1..5);
 /// let open_ended = Range::from(10..);
@@ -54,7 +54,7 @@ impl From<std::ops::RangeFrom<i64>> for Range {
 ///
 /// # Examples
 /// ```rust
-/// use protobuf_parser::ast::{Map, MapValue};
+/// use protobuf_ast_parser::ast::{Map, MapValue};
 /// use std::borrow::Cow;
 ///
 /// let map: Map = [(Cow::from("enabled"), MapValue::boolean(true))].into();
@@ -114,7 +114,7 @@ impl<'a> FromBorrowedIter<'a> for Map<'a> {
 ///
 /// # Examples
 /// ```rust
-/// use protobuf_parser::ast::{MapValue, Option};
+/// use protobuf_ast_parser::ast::{MapValue, Option};
 ///
 /// let option = Option::new("deprecated", MapValue::boolean(true));
 /// assert_eq!(option.key, "deprecated");
@@ -179,7 +179,7 @@ pub enum CommentType {
 ///
 /// # Examples
 /// ```rust
-/// use protobuf_parser::ast::{RootEntry, Comment};
+/// use protobuf_ast_parser::ast::{RootEntry, Comment};
 ///
 /// let entry = RootEntry::comment(Comment::single_line("// hi"));
 /// ```
@@ -405,7 +405,7 @@ impl<'a> MessageEntry<'a> {
 ///
 /// # Examples
 /// ```rust
-/// use protobuf_parser::ast::{Field, FieldModifier};
+/// use protobuf_ast_parser::ast::{Field, FieldModifier};
 ///
 /// let field = Field::new(Some(FieldModifier::Optional), "string", "name", 1, vec![]);
 /// assert_eq!(field.index, 1);

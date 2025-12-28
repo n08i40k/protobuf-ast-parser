@@ -2,7 +2,7 @@
 //!
 //! # Examples
 //! ```rust
-//! use protobuf_parser::lexer::{Lexer, Token};
+//! use protobuf_ast_parser::lexer::{Lexer, Token};
 //!
 //! let mut lexer = Lexer::new("syntax = \"proto3\";");
 //! let first = lexer.next().unwrap().unwrap();
