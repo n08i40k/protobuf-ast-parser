@@ -7,7 +7,7 @@ which is handy for tooling, linting, and analysis workflows.
 ## Usage
 
 ```rust
-use protobuf_parser::parse;
+use protobuf_ast_parser::parse;
 
 let source = r#"
 syntax = "proto3";
